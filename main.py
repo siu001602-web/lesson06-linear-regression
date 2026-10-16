@@ -91,7 +91,7 @@ with col1:
   st.markdown(
       f"""
         <div style="padding: 20px; border-radius: 10px; background-color: #f0f2f6; text-align: center;">
-            <h4 style="margin: 0; color: #31333F;">전체 기간 ({start_year}~{end_year년 = end_year}년, {num_years}개년)</h4>
+            <h4 style="margin: 0; color: #31333F;">전체 기간 ({start_year}~{end_year}년, {num_years}개년)</h4>
             <h2 style="margin: 10px 0 0 0; color: #1f77b4;">100년당 +{per_century_all:.2f} °C</h2>
             <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">상관계수(r): {correlation_all:.4f}</p>
         </div>
