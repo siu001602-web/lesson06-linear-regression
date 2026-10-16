@@ -11,7 +11,7 @@ st.set_page_config(
 
 st.title("🌡️ 서울 연도별 평균기온 분석 및 예측기")
 st.markdown(
-    "서울의 기온 데이터를 바탕으로 연평균 기온 추세를 분석하고, 전체 기간과 최근 20년의 기온 상승 속도를 비교합니다."
+    "서울의 기온 데이터를 바탕으로 연평균 기온 추세를 분석하고, 회귀 분석을 통해 미래 연도의 기온을 예측합니다."
 )
 
 
@@ -59,91 +59,46 @@ if yearly_data.empty:
   st.warning("조건을 만족하는 데이터가 없습니다.")
   st.stop()
 
-# 메타데이터 추출 (전체 기간)
+# 메타데이터 추출
 start_year = int(yearly_data["연도"].min())
 end_year = int(yearly_data["연도"].max())
 num_years = len(yearly_data)
 
-# 선형 회귀 분석 (전체 기간)
-X_all = yearly_data["연도"].values
-y_all = yearly_data["연평균기온"].values
-slope_all, intercept_all = np.polyfit(X_all, y_all, 1)
-correlation_all = np.corrcoef(X_all, y_all)[0, 1]
+# 선형 회귀 분석 (최소제곱법)
+X = yearly_data["연도"].values
+y = yearly_data["연평균기온"].values
 
-# 최근 20년 데이터 필터링 (예: 2006년 ~ 2025년)
-recent_start_year = max(end_year - 19, start_year)
-recent_data = yearly_data[yearly_data["연도"] >= recent_start_year]
-X_recent = recent_data["연도"].values
-y_recent = recent_data["연평균기온"].values
-slope_recent, intercept_recent = np.polyfit(X_recent, y_recent, 1)
+slope, intercept = np.polyfit(X, y, 1)
+correlation = np.corrcoef(X, y)[0, 1]
 
-# 100년당 기온 상승 폭으로 변환 (기울기 * 100)
-per_century_all = slope_all * 100
-per_century_recent = slope_recent * 100
-
-st.markdown("---")
-st.subheader("📊 기온 상승 속도 비교 (100년당 상승 폭)")
-
-# 화면 상단 비교 메트릭 표시
-col1, col2 = st.columns(2)
-
-with col1:
-  st.markdown(
-      f"""
-        <div style="padding: 20px; border-radius: 10px; background-color: #f0f2f6; text-align: center;">
-            <h4 style="margin: 0; color: #31333F;">전체 기간 ({start_year}~{end_year년 = end_year}년, {num_years}개년)</h4>
-            <h2 style="margin: 10px 0 0 0; color: #1f77b4;">100년당 +{per_century_all:.2f} °C</h2>
-            <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">상관계수(r): {correlation_all:.4f}</p>
-        </div>
-        """,
-      unsafe_allow_html=True,
-  )
-
-with col2:
-  st.markdown(
-      f"""
-        <div style="padding: 20px; border-radius: 10px; background-color: #f0f2f6; text-align: center;">
-            <h4 style="margin: 0; color: #31333F;">최근 20년 ({recent_start_year}~{end_year}년)</h4>
-            <h2 style="margin: 10px 0 0 0; color: #ff4b4b;">100년당 +{per_century_recent:.2f} °C</h2>
-            <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">최근 속도가 전체 평균보다 약 {(per_century_recent / per_century_all):.1f}배 빠름</p>
-        </div>
-        """,
-      unsafe_allow_html=True,
-  )
+# 화면 상단 메타데이터 표시
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("시작 연도", f"{start_year}년")
+col2.metric("끝 연도", f"{end_year}년")
+col3.metric("사용한 연도 개수", f"{num_years}개")
+col4.metric("상관계수 (r)", f"{correlation:.4f}")
 
 st.markdown("---")
 
 # Plotly 그래프 생성
-yearly_data["회귀예측값"] = slope_all * yearly_data["연도"] + intercept_all
+yearly_data["회귀예측값"] = slope * yearly_data["연도"] + intercept
 
 fig = px.scatter(
     yearly_data,
     x="연도",
     y="연평균기온",
-    title="서울 연도별 평균기온 및 전체 회귀 직선",
+    title="서울 연도별 평균기온 및 회귀 직선",
     labels={"연도": "연도", "연평균기온": "연평균기온 (°C)"},
 )
 
-# 전체 회귀 직선 추가
+# 회귀 직선 추가
 fig.add_trace(
     go.Scatter(
         x=yearly_data["연도"],
         y=yearly_data["회귀예측값"],
         mode="lines",
-        name=f"전체 회귀선 (100년당 +{per_century_all:.2f}°C)",
-        line=dict(color="blue", width=2.5),
-    )
-)
-
-# 최근 20년 회귀 직선 추가
-recent_data_line_y = slope_recent * recent_data["연도"] + intercept_recent
-fig.add_trace(
-    go.Scatter(
-        x=recent_data["연도"],
-        y=recent_data_line_y,
-        mode="lines",
-        name=f"최근 20년 회귀선 (100년당 +{per_century_recent:.2f}°C)",
-        line=dict(color="red", width=2.5, dash="dash"),
+        name=f"회귀선 (y = {slope:.4f}x + {intercept:.2f})",
+        line=dict(color="red", width=2.5),
     )
 )
 
@@ -157,7 +112,7 @@ fig.update_layout(
 st.plotly_chart(fig, use_container_width=True)
 
 st.markdown("---")
-st.subheader("🔮 연도별 예상 기온 조회 (전체 회귀 기준)")
+st.subheader("🔮 연도별 예상 기온 조회")
 
 # 슬라이더 (1900 ~ 2100년)
 selected_year = st.slider(
@@ -169,7 +124,7 @@ selected_year = st.slider(
 )
 
 # 선택한 연도의 예상 기온 계산
-predicted_temp = slope_all * selected_year + intercept_all
+predicted_temp = slope * selected_year + intercept
 
 # 결과 강조 표시
 st.markdown(
